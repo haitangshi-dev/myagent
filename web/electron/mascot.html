@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: transparent;
+  }
+  #wrap {
+    -webkit-app-region: drag;
+    position: relative; width: 280px; height: 380px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  #status {
+    margin-top: 6px; padding: 4px 12px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; letter-spacing: .5px;
+    background: rgba(16,185,129,0.14); color: #34d399;
+    border: 1px solid rgba(52,211,153,0.35);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    transition: color .25s, background .25s, border-color .25s;
+  }
+  #char {
+    width: 200px; height: 200px; margin-top: 4px;
+    filter: drop-shadow(0 8px 16px rgba(0,0,0,0.5));
+    image-rendering: auto;
+    user-select: none; -webkit-user-drag: none;
+  }
+  #bubble {
+    -webkit-app-region: no-drag;
+    margin-top: 4px; max-width: 260px; max-height: 120px; overflow: auto;
+    padding: 10px 14px; border-radius: 16px;
+    background: rgba(20,16,10,0.7);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(52,211,153,0.3);
+    color: #f3e2c7; font-size: 13px; line-height: 1.5;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.45);
+    white-space: pre-wrap; word-break: break-word;
+    display: none;
+  }
+  #bubble.show { display: block; }
+  #hint {
+    position: absolute; bottom: 2px; right: 6px; font-size: 10px;
+    color: rgba(243,226,199,0.4); -webkit-app-region: no-drag;
+  }
+  /* 滚动条隐藏，保持轻量 */
+  #bubble::-webkit-scrollbar { width: 0; height: 0; }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="status">待机</div>
+    <img id="char" src="" alt="mascot" />
+    <div id="bubble"></div>
+    <div id="hint">Esc 隐藏 · 拖动移动</div>
+  </div>
+<script>
+  const base = new URLSearchParams(location.search).get('base') || 'http://127.0.0.1:8000';
+  const TOTAL = 30;
+  const charEl = document.getElementById('char');
+  const statusEl = document.getElementById('status');
+  const bubbleEl = document.getElementById('bubble');
+
+  // 预加载 30 帧透明 PNG（base 指向后端 /mascot/frames）
+  const imgs = [];
+  for (let i = 1; i <= TOTAL; i++) {
+    const url = base + '/mascot/frames/frame_' + String(i).padStart(4, '0') + '_transparent.png';
+    const im = new Image();
+    im.src = url;
+    imgs.push(im);
+  }
+  let frame = 0;
+  charEl.src = imgs[0].src;
+  // 循环动画 ~110ms/帧（30 帧约 3.3s 一轮）
+  setInterval(() => {
+    frame = (frame + 1) % TOTAL;
+    charEl.src = imgs[frame].src;
+  }, 110);
+
+  const STATE_TEXT = {
+    idle: '待机',
+    thinking: '思考中…',
+    tooling: '调用工具…',
+    replying: '回复中…',
+    error: '出错了',
+  };
+  const STATE_COLOR = {
+    idle:     { c: '#34d399', bg: 'rgba(16,185,129,0.14)', bd: 'rgba(52,211,153,0.35)' },
+    thinking: { c: '#fbbf24', bg: 'rgba(251,191,36,0.14)', bd: 'rgba(251,191,36,0.35)' },
+    tooling:  { c: '#38bdf8', bg: 'rgba(56,189,248,0.14)', bd: 'rgba(56,189,248,0.35)' },
+    replying: { c: '#34d399', bg: 'rgba(16,185,129,0.18)', bd: 'rgba(52,211,153,0.45)' },
+    error:    { c: '#f87171', bg: 'rgba(248,113,113,0.16)', bd: 'rgba(248,113,113,0.4)' },
+  };
+
+  function applyState(state) {
+    const s = STATE_TEXT[state] || STATE_TEXT.idle;
+    const col = STATE_COLOR[state] || STATE_COLOR.idle;
+    statusEl.textContent = s;
+    statusEl.style.color = col.c;
+    statusEl.style.background = col.bg;
+    statusEl.style.borderColor = col.bd;
+  }
+
+  function applyText(text) {
+    if (text && text.trim()) {
+      bubbleEl.textContent = text;
+      bubbleEl.classList.add('show');
+      bubbleEl.scrollTop = bubbleEl.scrollHeight;
+    } else {
+      bubbleEl.classList.remove('show');
+    }
+  }
+
+  if (window.electronAPI && window.electronAPI.onMascotUpdate) {
+    window.electronAPI.onMascotUpdate((payload) => {
+      const state = (payload && payload.state) || 'idle';
+      const text = (payload && payload.text) || '';
+      applyState(state);
+      applyText(text);
+    });
+  }
+
+  // Esc 隐藏窗口（Ctrl+Shift+M / 托盘可再唤起）
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && window.electronAPI && window.electronAPI.hideMascot) {
+      window.electronAPI.hideMascot();
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+# =============================================================================
+# MY_AGENT — 仓库忽略规则
+# =============================================================================
+
+# ---- 运行时产物 ----
+__pycache__/
+*.py[cod]
+logs/
+backups/
+*.log
+nul
+imgui.ini
+
+# ---- 用户数据 / 密钥（绝不提交）----
+# 本机覆盖配置里可能含使用者填写的接口密钥
+config/secrets.yaml
+config/credentials.yaml
+config/settings.override.yaml
+config/settings.yaml.bak*
+# 用户数据目录（任务看板 / 定时任务 / 记忆 / 知识库）
+data/
+knowledge/
+.workbuddy/
+
+# ---- 虚拟环境 ----
+venv/
+.venv/
+
+# ---- 前端依赖与打包产物 ----
+web/node_modules/
+web/release/
+web/dist/
+web/*.png
+web/*.tsbuildinfo
+web/vite.config.js
+web/vite.config.d.ts
+
+# ---- 语音离线识别大文件（135MB，超出 GitHub 单文件 100MB 上限）----
+# 需要时用 `npm run fetch:sherpa` 重新拉取（见 scripts/fetch-sherpa-assets.mjs）
+web/public/sherpa/
+
+# ---- 本地开发遗留（不参与程序运行）----
+tools/
+llama.cpp/
+models/
+downloads/
+build/
+cpp_client/

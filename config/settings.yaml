@@ -1,0 +1,209 @@
+# =============================================================================
+# MY_AGENT — 运行时配置
+#
+# ★ 本项目不提供任何推理后端，也不内置任何服务商：程序只做「接口层」。
+#   使用者自行填入任意 OpenAI 兼容接口（地址 / 密钥 / 模型名）即可使用，
+#   见下方 providers.custom。默认不填写，首次启动前端会引导配置。
+# =============================================================================
+
+server:
+  host: "127.0.0.1"
+  port: 8000
+  static_dir: web
+  # PC-only：后端仅绑 127.0.0.1 回环，不外暴露；令牌鉴权已关闭（留空 = 不鉴权）。
+  # 若未来重新开放远程/手机访问，再填值并在此放开绑定与 auth_middleware。
+  auth_token: ""
+
+# 运行时模式：full（完整模式）| minimal（极简模式）
+#   full    = 全部工具 + 完整系统提示词
+#   minimal = 精简工具集 + 短提示词（省 token，适合小模型 / 轻量接口）
+# 与「本地 / 云端」无关：本项目不区分推理来源，只区分助手的行为复杂度。
+# 前端顶栏可随时切换；此处为初始默认值。
+runtime_mode: full
+
+# 默认 provider / model
+# 本项目不提供服务商，默认留空；使用者在前端「设置 → 接口」里填自己的
+# OpenAI 兼容接口（地址 / 密钥 / 模型名），保存到用户数据目录的 override 配置，
+# 重装/升级不丢。
+default_provider: custom
+default_model: ""
+
+# 上下文：用模型自身上限（0 = 不主动压缩）。
+# 0 = 不主动压缩，让 1M 窗口充分使用。
+auto_compress:
+  max_context_tokens: 0
+
+# -----------------------------------------------------------------------------
+# 联网搜索配置（web_search 工具）
+# 引擎链：按列表顺序尝试，第一个成功即返回。全部纯 httpx，无新依赖。
+#   searxng : SearXNG 元搜索，聚合百度/搜狗/360/Bing 等，中文结果好、免费、无需 key（需可用实例）
+#   ddg     : DuckDuckGo，零配置免费，中文偏弱（已设 cn-zh 偏向中文），作为稳定兜底
+#   google  : Google 自定义搜索，中文最好最稳，免费 100 次/天，需申请 key
+# 想拿到最好的中文结果，二选一：
+#   1) 用公共/自托管 SearXNG 实例（默认 https://searx.be，可改 searxng_url）
+#   2) 申请免费 Google CSE：https://developers.google.com/custom-search/v1/introduction
+#      key 填入下方 google_api_key，cx 填「搜索引擎 ID」，即自动优先用 Google
+# -----------------------------------------------------------------------------
+search:
+  engine_chain: [searxng, ddg]
+  searxng_url: "https://searx.be"
+  region: "cn-zh"            # DuckDuckGo / 中文偏向
+  # google_api_key: "${GOOGLE_SEARCH_API_KEY:}"   # 留空则不使用 Google
+  # google_cx: "${GOOGLE_SEARCH_CX:}"
+
+# -----------------------------------------------------------------------------
+# 在线 TTS（微软 Azure 神经语音）：用于朗读模型回复。
+# 密钥留服务端，绝不暴露给前端。最佳中文女声默认 zh-CN-XiaoxiaoNeural。
+# 不填则 /api/tts 返回 501，前端自动回退本地 SpeechSynthesis（优先 XiaoxiaoNeural）。
+# 申请：https://portal.azure.com → 创建「语音服务」资源 → 取 Key + Region（如 eastasia）
+# -----------------------------------------------------------------------------
+azure_speech:
+  key: "${AZURE_SPEECH_KEY:}"
+  region: "${AZURE_SPEECH_REGION:}"
+
+# -----------------------------------------------------------------------------
+# 邮件网关：用邮箱给助手发信 → 系统检测到新邮件 → 唤醒模型执行 → 自动回信 + App 内展示。
+# 底层可用腾讯官方 agently-cli（@tencent-qqmail）直调（需自行 auth login 授权）
+# 这枚平台 agent 邮箱的官方客户端。鉴权走 agent.qq.com
+# device-code OAuth，凭据由 CLI 存于 Windows DPAPI 并自动续期，MY_AGENT 不自己管 token。
+# 前置：npm install -g @tencent-qqmail/agently-cli 且 agently-cli auth login 已授权。
+# -----------------------------------------------------------------------------
+email:
+  enabled: false               # 默认关闭；启用需自备 agently-cli 授权与收件地址
+  provider: custom             # 使用 providers 里的自定义接口
+  model: ""                    # 留空 = 用 default_model
+  poll_interval: 30            # 轮询间隔（秒，最小 15）；CLI 限 10 次/分、200 次/时
+  fetch_limit: 10              # 每次拉取最近多少封
+  max_process_per_poll: 2      # 单轮最多处理几封新邮件（限频保护）
+  auto_reply: true             # 处理完自动回邮件（reply 两阶段由网关自动确认）
+  auto_approve: true           # 无人值守：跳过前端审批弹窗（受保护目录硬安全网仍生效）
+  my_address: ""               # 本机 agent 邮箱（留空 = 未配置）；用于过滤自己回信防自问自答
+  report_to: ""                # 任务完成自动发邮件回执的收件人（留空 = 不发回执）
+  report_on_schedule: true     # 定时任务执行后自动发回执邮件 + 写记忆（闭环）
+  allow_senders: []            # 白名单发件人（留空=不限制），如 ["me@qq.com"]
+  timeout: 60                  # agently-cli 单次调用超时（秒）
+
+# 定时任务调度（R-02 事故级：超时/隔离/告警）
+scheduler:
+  task_timeout: 600            # 单个定时任务执行超时（秒）；超时强制终止 + 告警回执，
+                               # 不阻塞其他任务（每任务独立并发执行）；0=用 email.timeout*10 或默认 600
+
+# -----------------------------------------------------------------------------
+# 安全策略（2026-08-08 新增）
+# 删除确认目录：即使权限档位为 high，对这些目录内的 delete_file / shell 删除
+# 仍强制要求用户在前端确认（前端可通过资源管理器多选配置，存到本列表）。
+# 系统目录（Windows/Program Files/ProgramData/项目本体）永远受保护，不可被
+# 此配置解除——即使本列表为空，它们也始终硬拦截（见 tools._PROTECTED_DIRS）。
+# -----------------------------------------------------------------------------
+security:
+  delete_confirm_dirs: []      # 例：["C:/Users/你的用户名/Desktop", "D:/重要资料"]
+
+# agent 段配置（工具循环不再设次数上限，模型可连续调用任意轮，靠模型自行停止或用户点「停止」结束）
+agent:
+  # 采样温度：全局统一 0.15。
+  # 改数字即可全局调整；代码读不到时回落 0.15。
+  temperature: 0.15
+  prefix_cache_optimize: true  # 前缀缓存优化：把长期记忆注入「user 消息尾部」而非 system 头部，
+                              # 冻结 system+history 前缀以提升主流接口的前缀缓存命中率；false 回退旧行为
+  tool_timeout: 120          # 单个工具执行超时（秒）
+  memory_autosave: true      # 每轮对话自动从对话中抽取关键事实写入跨会话全局记忆
+  memory_auto_summarize_threshold: 300  # 活跃记忆超过此条数时自动压缩最旧部分（best-effort）
+  system_prompt: |
+    你是一位贴心、能干的电脑智能助手，运行在用户的电脑上。
+    你可以通过工具读写文件、执行 Shell、上网检索、运行 Python 代码来真正地完成用户的任务。
+    可用工具：shell / read_file / write_file / edit_file(精确替换文本) /
+    list_files / search_content(正则检索代码) / web_fetch / web_search /
+    download(下载URL) / http_request(调用API) / python_exec / time_now(当前时间) /
+    memory_remember(记住) / memory_recall(回忆) / think(记录计划) /
+    find_skill(在 SkillHub 技能市场检索可用技能，发现新能力后可在前端「技能市场」面板安装) /
+    list_software(列出本机已装软件) / uninstall_software(卸载软件，需用户确认) /
+    organize_downloads(整理下载/指定文件夹：按类型归类到子目录，preview 看方案、apply 才移动，需用户确认) /
+    desktop_control(桌面/GUI 自动化：截图[可选 OCR 或 多模态视觉理解]/鼠标/键盘/窗口，用于操作无命令行的图形程序)；
+    task_board(把复杂多步需求拆成子任务清单并实时跟踪进度，任务看板紧贴聊天输入框上方展示)；
+    kb_search / kb_save / kb_read / kb_list(内置知识库：检索 / 沉淀 / 读取 / 列目录)；
+    schedule_task(创建定时任务，让助手在未来指定时间自动执行某段提示词)。
+    ★★★ 工具调用原则（最高优先级）★★★
+    1. 当任务需要「获取外部信息或执行真实动作」——例如读取/修改/搜索文件、执行命令、上网检索、
+       运行代码、安装/卸载软件、控制桌面——你必须直接调用对应工具，绝对不要用文字说
+       「让我读取…」「好的,我来读取…」然后不调用工具！需要读文件就调 read_file，需要搜代码就调
+       search_content，需要改文件就调 edit_file/write_file，需要跑命令就调 shell——不要描述，直接做！
+    2. 纯对话、知识问答、闲聊、情感交流、解释说明等不需要工具的任务，直接用语自然回答即可，
+       不要强行调用工具。是否调工具取决于「这个回答是否需要外部信息或真实动作」，而不是对话形式。
+    3. 【绝对禁止重复输出】你严禁输出相同或高度相似的句子两次以上。
+       如果你发现自己正在说「好的，让我…」「让我检查…」「让我读取…」这类话且之前已经说过，
+       说明你陷入了输出循环——**立即停止说话**，直接调用工具（read_file / shell / search_content 等）
+       执行实际操作。如果本就是纯对话任务，用一句话总结后结束，绝不要反复说同一句话。
+       违反此规则会导致输出被系统自动截断，影响用户体验。
+    4. 先思考（用 think 工具记录计划），再行动。
+    5. 修改已有文件优先用 edit_file（old_string/new_string 精确替换），不要整文件覆盖。
+    6. 定位代码/配置用 search_content，而不是凭记忆猜路径。
+    7. 工具参数要具体、可执行。
+    8. 用户透露的偏好、事实、待办可用 memory_remember 记下来，后续用 memory_recall 召回。
+    9. 完成后用中文简洁总结结果，不要复述工具原始 JSON。
+    10. 涉及破坏性操作（删除/覆盖）前先确认路径：delete_file / uninstall_software 会向用户发起确认，
+        未经确认不得执行；shell 中禁止直接用 del/rm/format 等删除命令（改用上述工具）。
+    11. 系统目录（C:\Windows、Program Files、ProgramData 等）与本程序所在目录受保护，
+        禁止删除/写入/修改，不要尝试操作它们；如用户明确要求且确认，也仍会被安全策略拦截。
+    12. 当用户的需求明显是复杂、多步的任务时，先用 task_board(action=add) 把需求拆成清晰的子任务清单
+        注入前端（紧贴输入框的任务看板），然后逐步执行；每完成一步用 task_board(action=update) 把对应任务
+        标记为 doing/done，        让用户随时看到进度。若用户希望某件事在未来定时自动发生，用 schedule_task 创建定时任务。
+    13. 长任务（>3 步）完成前，调用一次 task_checklist 做收尾自检：确认产出已落盘（路径可被下次引用）、
+        重要事实/路径已写入记忆、需要用户知道的结果已发邮件或已在回复说明、项目约定文档已同步、
+        任务看板已全部 done；有未完成项先补齐再给最终总结。涉及知识库时用 kb_search 检索、
+        用 kb_save 沉淀、用 kb_list 查看已有内容，不要凭记忆猜路径。
+    14. 【权限档位】当前权限由用户通过前端滑动条设置：low=只读（仅搜索/读文件/看网页）、
+        medium=常规（写文件+执行命令，默认）、high=接管电脑（桌面自动化/卸载软件/系统级修改）。
+        当你需要执行的操作超出当前档位（工具被拒绝时会明确提示所需档位）时，调用
+        request_permission(target_level=所需档位, reason=理由) 向用户申请临时提权；被拒绝就换安全方案。
+    15. 【能力自配置】用户提出新能力需求（如「我想听他说话」→ 语音/TTS、「我想让她看图」→ 视觉、
+        「定时提醒我」→ 定时任务）时，你有能力自己配置：用 shell/download/python_exec 安装所需组件
+        （如 pip install、下载 API 依赖）、写配置文件、调用 http_request 对接语音/视觉 API 等，
+        不要以「我没有这个功能」搪塞——先尝试自主搭建，需要确认的操作（安装系统级软件等）按档位规则申请提权。
+
+  # ---------------------------------------------------------------------------
+  # 模式配置：full（完整）| minimal（极简）
+  #   full    完整模式 = 全部工具 + 上方完整提示词
+  #   minimal 极简模式 = 精简工具集 + 短提示词（省 token，适合小模型 / 轻量接口）
+  #   ★ 与「本地 / 云端」无关：本项目不区分推理来源，只区分助手的行为复杂度。
+  #   minimal_tools: 白名单工具列表（null = 默认精简集，[] = 无工具/纯聊天）
+  #   minimal_system_prompt: 极简模式专用提示词（null = 内置精简提示词）
+  # 用户可自由增减工具名（来自 agents/tools.py 的 TOOLS 注册表）来扩展能力
+  # ---------------------------------------------------------------------------
+  minimal_tools: null              # null = 默认精简集（见下）；自定义示例：
+    # - read_file
+    # - write_file
+    # - edit_file
+    # - list_files
+    # - shell
+    # - memory_remember
+    # - memory_recall
+    # - search_content             # 取消注释即可扩展：代码搜索
+    # - web_search                 # 取消注释即可扩展：联网搜索
+    # - python_exec                # 取消注释即可扩展：Python 执行
+  minimal_system_prompt: null      # null = 用内置精简提示词（短、直接）
+
+# -----------------------------------------------------------------------------
+# Provider 定义
+#
+# ★ 本项目不提供任何服务商，也不提供推理后端（无 llama.cpp / 无 LM Studio），
+#   只提供「接口层」：使用者填入任意 OpenAI 兼容接口（地址 / 密钥 / 模型名）即可使用。
+#   下方 custom 是唯一内置的接口槽位，默认留空；首次启动前端会引导填写。
+#   ★ 前端「设置 → 接口」保存的值写入用户数据目录的 settings.override.yaml，
+#     重装 / 升级不丢（见 config/__init__.py）。
+# -----------------------------------------------------------------------------
+providers:
+  custom:
+    display_name: "自定义接口"
+    description: "填入任意 OpenAI 兼容接口：地址 / 密钥 / 模型名。本程序不提供服务商与推理后端。"
+    api_mode: chat_completions
+    base_url: ""                    # ★ 接口地址，如 https://api.openai.com/v1
+    api_key: ""                     # ★ 接口密钥（留空 = 本地/免鉴权接口）
+    models: []                      # ★ 模型名列表，如 ["gpt-4o-mini"]
+    default_model: ""               # 留空 = 用 models 第一项
+    rate_limit:
+      max_rpm: 0                    # 0 = 不限流
+      min_interval: 0.0
+    supports_vision: false          # 接口支持图片输入时改 true
+    supports_reasoning: false       # 接口返回 reasoning_content 时改 true
+    timeout: 120
+    # context_window: 32768         # 可选：填了前端才显示上下文占用条

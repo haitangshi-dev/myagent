@@ -1,0 +1,181 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    -webkit-app-region: drag;
+  }
+  /* 深色（默认）：琥珀橙主题 token */
+  :root {
+    --bar-bg: rgba(20, 16, 10, 0.82);
+    --bar-border: rgba(249, 115, 22, 0.35);
+    --bar-shadow: rgba(0, 0, 0, 0.45);
+    --bar-fg: #f3e2c7;
+    --in-ph: #a98f6b;
+    --btn-border: rgba(249, 115, 22, 0.3);
+    --btn-bg: rgba(249, 115, 22, 0.12);
+    --btn-bg-hover: rgba(249, 115, 22, 0.25);
+    --btn-fg: #FB923C;
+    --resp-bg: rgba(20, 16, 10, 0.95);
+    --resp-border: rgba(249, 115, 22, 0.3);
+    --resp-fg: #f3e2c7;
+  }
+  /* 浅色（跟随系统 / 主窗口）：明亮玻璃 + 暖橙点缀，保持品牌色 */
+  html.light {
+    --bar-bg: rgba(255, 250, 242, 0.86);
+    --bar-border: rgba(234, 88, 12, 0.30);
+    --bar-shadow: rgba(120, 80, 20, 0.18);
+    --bar-fg: #3a2c1a;
+    --in-ph: #9a7b55;
+    --btn-border: rgba(234, 88, 12, 0.35);
+    --btn-bg: rgba(234, 88, 12, 0.10);
+    --btn-bg-hover: rgba(234, 88, 12, 0.20);
+    --btn-fg: #C2410C;
+    --resp-bg: rgba(255, 252, 246, 0.97);
+    --resp-border: rgba(234, 88, 12, 0.28);
+    --resp-fg: #3a2c1a;
+  }
+  #bar {
+    display: flex; align-items: center; gap: 8px;
+    height: 64px; margin: 4px; padding: 0 12px;
+    background: var(--bar-bg);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--bar-border); border-radius: 14px;
+    box-shadow: 0 6px 24px var(--bar-shadow);
+    color: var(--bar-fg);
+  }
+  #bar > * { -webkit-app-region: no-drag; }
+  #in {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--bar-fg); font-size: 15px; height: 32px;
+  }
+  #in::placeholder { color: var(--in-ph); }
+  .btn {
+    width: 30px; height: 30px; flex: 0 0 auto; border-radius: 8px;
+    border: 1px solid var(--btn-border);
+    background: var(--btn-bg); color: var(--btn-fg);
+    cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn:hover { background: var(--btn-bg-hover); }
+  #resp {
+    position: absolute; left: 4px; right: 4px; top: 74px; max-height: 42vh;
+    overflow: auto; background: var(--resp-bg);
+    border: 1px solid var(--resp-border); border-radius: 12px;
+    padding: 12px; color: var(--resp-fg); font-size: 14px; line-height: 1.5;
+    display: none; white-space: pre-wrap; -webkit-app-region: no-drag;
+  }
+  #resp.show { display: block; }
+</style>
+</head>
+<body>
+  <div id="bar">
+    <input id="in" placeholder="问助手…（Enter 发送 / Esc 收起）" autofocus />
+    <div class="btn" id="expand" title="展开 / 收起回复">▾</div>
+    <div class="btn" id="open" title="打开主窗口">⤢</div>
+  </div>
+  <div id="resp"></div>
+  <script>
+    const base = new URLSearchParams(location.search).get('base') || 'http://127.0.0.1:8000';
+    const inEl = document.getElementById('in');
+    const respEl = document.getElementById('resp');
+    let busy = false;
+
+    // ★ 主题跟随：主进程推来的系统浅/深变化 → 切 <html class="light">
+    function applyTheme(dark) {
+      const root = document.documentElement;
+      if (dark) root.classList.remove('light');
+      else root.classList.add('light');
+    }
+    if (window.electronAPI && typeof window.electronAPI.onThemeChange === 'function') {
+      window.electronAPI.onThemeChange((dark) => applyTheme(dark));
+    }
+    // 兜底：主动问一次当前主题（避免错过 initial 事件）
+    if (window.electronAPI && typeof window.electronAPI.getThemeDark === 'function') {
+      window.electronAPI.getThemeDark().then((dark) => applyTheme(dark)).catch(() => {});
+    }
+
+    // 吉祥物浮窗状态推送：边缘条（快速提问）是独立窗口，必须自己驱动吉祥物
+    function pushMascot(state, text) {
+      try {
+        if (window.electronAPI && typeof window.electronAPI.pushMascot === 'function') {
+          window.electronAPI.pushMascot(state, text || '');
+        }
+      } catch (_) { /* 吉祥物未启动则忽略 */ }
+    }
+
+    async function send() {
+      const msg = inEl.value.trim();
+      if (!msg || busy) return;
+      busy = true;
+      inEl.value = '';
+      respEl.textContent = '';
+      respEl.classList.add('show');
+      pushMascot('thinking', '');   // 开始思考
+      let text = '';
+      let errored = false;
+      try {
+        const r = await fetch(base + '/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: msg, provider: 'nim', model: null,
+            history: [], session_id: 'edge'
+          }),
+        });
+        const reader = r.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let i;
+          while ((i = buf.indexOf('\n\n')) >= 0) {
+            const chunk = buf.slice(0, i);
+            buf = buf.slice(i + 2);
+            if (chunk.startsWith('data: ')) {
+              try {
+                const ev = JSON.parse(chunk.slice(6));
+                if (ev.type === 'reasoning') {
+                  if (!text) pushMascot('thinking', '');
+                } else if (ev.type === 'tool_call') {
+                  pushMascot('tooling', ev.label || ev.name || '调用工具');
+                } else if (ev.type === 'content') {
+                  text += ev.text || '';
+                  respEl.textContent = text;
+                  pushMascot('replying', text);
+                } else if (ev.type === 'error') {
+                  errored = true;
+                  text += '\n[错误] ' + (ev.message || '');
+                  respEl.textContent = text;
+                  pushMascot('error', ev.message || '出错了');
+                }
+              } catch (e) { /* 忽略非 JSON 行 */ }
+            }
+          }
+        }
+      } catch (e) {
+        errored = true;
+        respEl.textContent = '[请求失败] ' + e;
+        pushMascot('error', '请求失败');
+      }
+      busy = false;
+      // 任务结束：出错保持 error，否则回归待机（保留最后输出文本）
+      if (!errored) pushMascot('idle', text);
+    }
+
+    inEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); send(); }
+      else if (e.key === 'Escape') { if (window.electronAPI) window.electronAPI.showMainWindow(); }
+    });
+    document.getElementById('expand').onclick = () => respEl.classList.toggle('show');
+    document.getElementById('open').onclick = () => {
+      if (window.electronAPI) window.electronAPI.showMainWindow();
+    };
+  </script>
+</body>
+</html>

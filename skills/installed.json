@@ -1,0 +1,25 @@
+{
+  "ai-agent-onboarding-wizard": {
+    "slug": "ai-agent-onboarding-wizard",
+    "name": "AI Agent Onboarding Wizard",
+    "description": "在5分钟内让AI智能体投入使用。自动环境扫描、智能技能推荐、精确安装命令，无需反复试错。",
+    "category": "ai-agent",
+    "source": "clawhub",
+    "homepage": "https://api.skillhub.cn/certainlogicai/ai-agent-onboarding-wizard",
+    "version": "1.0.1",
+    "icon_url": "https://cloudcache.tencent-cloud.com/qcloud/ui/static/other_external_resource/a00e31c7-8d6a-4e65-84fc-16a177f95674.png",
+    "installed_at": "2026-07-26T18:06:10",
+    "real": true
+  },
+  "task-templates": {
+    "slug": "task-templates",
+    "name": "任务模板库（高频管线）",
+    "description": "沉淀高频任务管线：数据抓取入库、知识库检索、长任务收尾自检、会话恢复。遇到相似任务先加载模板，不重复摸索。",
+    "category": "dev-programming",
+    "source": "builtin",
+    "homepage": "",
+    "version": "1.0.0",
+    "installed_at": "2026-08-06",
+    "real": true
+  }
+}

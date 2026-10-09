@@ -1,0 +1,440 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   设计系统 — 像素章鱼 / 复古游戏风格
+   主色：暖橙（章鱼体）+ 深棕底 + 冰蓝点缀（气泡）
+   字体：标题用像素字体，正文保持可读性
+   风格：硬边、实色、粗边框、无毛玻璃、像素网格底纹
+   ============================================================ */
+:root {
+  /* ---- 调色板（取自像素章鱼）---- */
+  --bg: #0d0a07;            /* 极深暖黑（近黑褐） */
+  --bg-raise: #1a1208;      /* 抬升面：深棕 */
+  --surface: #231a0e;       /* 面板底：暖深棕 */
+  --surface-strong: #2e2210;/* 强调面板 */
+  --line: #3d2e18;          /* 边框：中棕 */
+  --line-strong: #5a4322;   /* 强边框：亮棕 */
+  --ink: #ffe7cf;           /* 正文：暖白（像旧 CRT），略提亮 */
+  --dim: #c9a877;           /* 次要文字：暗金，提亮增强可读性 */
+  --faint: #8a6d44;         /* 极淡：土黄，提亮以满足对比度 */
+
+  /* 主色 — 章鱼橙 */
+  --accent: 249 115 22;         /* #F97316 橙 */
+  --accent-strong: 251 146 60;  /* #FB923C 亮橙 */
+  /* 点缀 — 气泡蓝 */
+  --cyan: 56 189 248;           /* #38BDF8 冰蓝 */
+  --cyan-strong: 125 211 252;   /* #7DD3FC 亮蓝 */
+  --danger: 239 68 68;          /* #EF4444 红 */
+  --warn: 234 179 8;            /* #EAB308 黄 */
+  /* 技能市场 — 紫罗兰（保留区分） */
+  --skill: 167 139 250;
+
+  /* 像素字体（标题/UI标签用） */
+  --pixel-font: 'Press Start 2P', monospace;
+  --body-font: 'Geist Sans', Inter, system-ui, sans-serif;
+  --mono-font: 'Geist Mono', ui-monospace, monospace;
+
+  color-scheme: dark;
+}
+
+/* ============================================================
+   系统浅色跟随（Windows 浅色模式下 <html class="light"> 触发）
+   保留像素章鱼暖调，但底色翻成纸感浅色、文字转深棕，保证对比度
+   ============================================================ */
+:root.light {
+  --bg: #f3ead9;            /* 暖纸白 */
+  --bg-raise: #ece0c9;      /* 抬升面：浅暖米 */
+  --surface: #fffaf0;       /* 面板底：近白暖 */
+  --surface-strong: #ffffff;/* 强调面板：纯白 */
+  --line: #d9c5a4;          /* 边框：浅棕 */
+  --line-strong: #bfa378;   /* 强边框：中棕 */
+  --ink: #2a1d0e;           /* 正文：深棕（高对比） */
+  --dim: #6b5230;           /* 次要文字：暗金棕 */
+  --faint: #9c7c4f;         /* 极淡：土黄棕 */
+
+  /* 主色/点缀保持原色（橙 + 冰蓝），浅底上更跳 */
+  --accent: 234 88 12;        /* #EA580C 深橙（浅底更稳） */
+  --accent-strong: 249 115 22;/* #F97316 橙 */
+  --cyan: 14 165 233;         /* #0EA5E9 深冰蓝 */
+  --cyan-strong: 2 132 199;   /* #0284C7 亮蓝 */
+  --skill: 124 58 237;        /* #7C3AED 紫 */
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--body-font);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+/* 背景：深褐底 + 像素网格 + 微弱橙色辉光 */
+#root {
+  position: relative;
+  isolation: isolate;
+}
+#root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    /* 像素网格纹理（用 repeating-linear-gradient 模拟） */
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(249, 115, 22, 0.015) 2px,
+      rgba(249, 115, 22, 0.015) 3px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      rgba(249, 115, 22, 0.015) 2px,
+      rgba(249, 115, 22, 0.015) 3px
+    ),
+    /* 右上角微弱橙辉光 */
+    radial-gradient(600px 400px at 95% 5%, rgba(249, 115, 22, 0.08), transparent 60%),
+    /* 左下角微弱蓝辉光（气泡色） */
+    radial-gradient(500px 350px at 5% 95%, rgba(56, 189, 248, 0.04), transparent 60%),
+    var(--bg);
+}
+
+::selection {
+  background: rgb(var(--accent) / 0.35);
+  color: #fff;
+}
+
+/* ---- 滚动条：复古粗像素风 ---- */
+* {
+  scrollbar-width: auto;
+  scrollbar-color: var(--line-strong) var(--bg-raise);
+}
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--bg-raise);
+  border-left: 2px solid var(--line);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border: 2px solid var(--bg-raise);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--accent));
+}
+*::-webkit-scrollbar-corner {
+  background: var(--bg-raise);
+}
+
+@layer components {
+  /* ---- 面板：实色硬边（替代液态玻璃）---- */
+  .glass {
+    background: var(--surface);
+    border: 2px solid var(--line);
+    /* 可选：极轻内阴影模拟凹陷 */
+    box-shadow: inset 2px 2px 0 rgba(0,0,0,0.25), inset -2px -2px 0 rgba(255,255,255,0.03);
+  }
+  .glass-strong {
+    background: var(--surface-strong);
+    border: 2px solid var(--line-strong);
+    box-shadow: inset 2px 2px 0 rgba(0,0,0,0.3), inset -2px -2px 0 rgba(255,255,255,0.03);
+  }
+
+  /* ---- 按钮：像素风硬边 ---- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-3.5 py-2 text-sm font-medium select-none;
+    font-family: var(--body-font);
+    color: var(--ink);
+    border: 2px solid transparent;
+    border-radius: 2px;   /* 近直角，仅 2px 微圆 */
+    transition: all 80ms ease-out;
+    position: relative;
+  }
+  .btn:hover {
+    transform: translate(-1px, -1px);
+  }
+  .btn:active {
+    transform: translate(0, 0);
+  }
+
+  .btn-ghost {
+    @apply btn;
+    color: var(--dim);
+    border-color: var(--line);
+    background: var(--surface);
+  }
+  .btn-ghost:hover {
+    background: var(--surface-strong);
+    color: var(--ink);
+    border-color: var(--line-strong);
+  }
+
+  .btn-accent {
+    @apply btn;
+    background: rgb(var(--accent));
+    color: #fff;
+    border-color: rgb(var(--accent-strong));
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.35);
+  }
+  .btn-accent:hover {
+    background: rgb(var(--accent-strong));
+    box-shadow: 4px 4px 0 rgba(0,0,0,0.35);
+  }
+  .btn-accent:active {
+    box-shadow: 1px 1px 0 rgba(0,0,0,0.35);
+  }
+
+  .btn-danger {
+    @apply btn;
+    background: rgb(var(--danger));
+    color: #fff;
+    border-color: #f87171;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+  }
+  .btn-danger:hover {
+    background: #ef4444;
+    box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 border px-2.5 py-1 text-xs font-bold;
+    border: 2px solid var(--line);
+    border-radius: 2px;
+    color: var(--dim);
+    background: var(--surface);
+    letter-spacing: 0.02em;
+  }
+
+  /* 技能型工具卡片 */
+  .tool-skill {
+    border-color: rgb(var(--skill) / 0.45);
+    background: rgb(var(--skill) / 0.1);
+    border-width: 2px;
+  }
+  .badge-skill {
+    @apply inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold;
+    background: rgb(var(--skill) / 0.2);
+    color: rgb(var(--skill));
+    border-radius: 2px;
+    border: 1px solid rgb(var(--skill) / 0.3);
+  }
+
+  /* ---- 输入框：像素风 ---- */
+  .field {
+    @apply w-full px-3 py-2 text-sm outline-none transition-all duration-150;
+    background: var(--bg);
+    border: 2px solid var(--line);
+    color: var(--ink);
+    border-radius: 2px;
+    font-family: var(--body-font);
+  }
+  .field:focus {
+    border-color: rgb(var(--accent));
+    box-shadow: 0 0 0 2px rgb(var(--accent) / 0.2);
+    background: var(--bg-raise);
+  }
+  .field::placeholder {
+    color: var(--faint);
+  }
+}
+
+@layer utilities {
+  .text-skill {
+    color: rgb(var(--skill));
+  }
+  .bg-skill {
+    background: rgb(var(--skill) / 0.15);
+  }
+  .text-cyan {
+    color: rgb(var(--cyan));
+  }
+  .bg-cyan {
+    background: rgb(var(--cyan) / 0.15);
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  /* 像素标题字 */
+  .pixel-title {
+    font-family: var(--pixel-font);
+    font-size: 14px;
+    line-height: 1.6;
+    letter-spacing: 0.05em;
+    color: rgb(var(--accent));
+    text-transform: uppercase;
+  }
+  .pixel-label {
+    font-family: var(--pixel-font);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--dim);
+    text-transform: uppercase;
+  }
+}
+
+/* ---- Markdown 渲染（聊天正文）---- */
+.md {
+  line-height: 1.65;
+  font-size: 14.5px;
+  color: var(--ink);
+  word-break: break-word;
+  font-family: var(--body-font);
+}
+.md > *:first-child {
+  margin-top: 0;
+}
+.md > *:last-child {
+  margin-bottom: 0;
+}
+.md p {
+  margin: 0.6em 0;
+}
+.md h1,
+.md h2,
+.md h3 {
+  margin: 1.1em 0 0.5em;
+  font-weight: 700;
+  line-height: 1.3;
+  font-family: var(--pixel-font);
+  color: rgb(var(--accent));
+}
+.md h1 { font-size: 1.3em; }
+.md h2 { font-size: 1.15em; }
+.md h3 { font-size: 1.04em; }
+.md ul,
+.md ol {
+  margin: 0.5em 0;
+  padding-left: 1.3em;
+}
+.md li {
+  margin: 0.25em 0;
+}
+.md a {
+  color: rgb(var(--cyan-strong));
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+.md code {
+  font-family: var(--mono-font);
+  font-size: 0.86em;
+  background: rgba(249, 115, 22, 0.1);
+  padding: 0.15em 0.4em;
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  border-radius: 2px;
+  color: rgb(var(--accent-strong));
+}
+.md pre {
+  margin: 0.7em 0;
+  padding: 0.9em 1em;
+  background: #0a0705;
+  border: 2px solid var(--line);
+  border-radius: 3px;
+  overflow-x: auto;
+}
+.md pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.82em;
+  line-height: 1.55;
+  color: var(--dim);
+  border: none;
+}
+.md blockquote {
+  margin: 0.6em 0;
+  padding: 0.3em 0 0.3em 1em;
+  border-left: 3px solid rgb(var(--accent));
+  color: var(--dim);
+  background: rgba(249, 115, 22, 0.04);
+  border-radius: 0 3px 3px 0;
+}
+.md table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.7em 0;
+  font-size: 0.9em;
+  border: 2px solid var(--line);
+}
+.md th,
+.md td {
+  border: 1px solid var(--line);
+  padding: 0.4em 0.6em;
+  text-align: left;
+}
+.md th {
+  background: var(--surface);
+  color: rgb(var(--accent));
+  font-weight: 700;
+  font-family: var(--pixel-font);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ---- 焦点态：键盘可达性（精致化的关键缺口）---- */
+:focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.btn:focus-visible,
+.field:focus-visible {
+  outline: none; /* 这两类已在 :focus 用 box-shadow 表达 */
+}
+
+/* ---- 动画曲线统一（ease-expo 由工具类调用）---- */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 1.8s ease-in-out infinite;
+}
+
+/* ---- 平滑滚动（长对话更顺滑）---- */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ---- 链接/按钮禁用态更清晰 ---- */
+.btn:disabled,
+.field:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
