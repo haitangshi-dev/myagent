@@ -1,5 +1,0 @@
-safe.directory=*
-windows.appendatomically=false
-credential.https://gitee.com.provider=generic
-http.postbuffer=524288000
-url.https://gh-proxy.com/https://github.com/.insteadof=https://github.com/
